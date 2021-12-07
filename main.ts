@@ -68,13 +68,25 @@ class MyStack extends TerraformStack {
       subnetId: publicSubnetTwo.id,
       routeTableId: publicRouteTable.id
     })
+    
+    const EIPOne = new aws.ec2.Eip(this, 'eip-1', {
+      vpc: true,
+    })
 
     const natGwOne = new aws.vpc.NatGateway(this, 'wp-nat-1', {
-      subnetId: publicSubnetOne.id
+      subnetId: publicSubnetOne.id,
+      allocationId: EIPOne.id,
+      dependsOn: [vpcNetwork, publicSubnetOne]
+    })
+
+    const EIPTwo = new aws.ec2.Eip(this, 'eip-2', {
+      vpc: true
     })
 
     const natGwTwo = new aws.vpc.NatGateway(this, 'wp-nat-2', {
-      subnetId: publicSubnetTwo.id
+      subnetId: publicSubnetTwo.id,
+      allocationId: EIPTwo.id,
+      dependsOn: [vpcNetwork, publicSubnetTwo]
     })
 
     const priRouteTableOne = new aws.vpc.RouteTable(this, 'pri-routetable-1', {
@@ -84,7 +96,8 @@ class MyStack extends TerraformStack {
           natGatewayId: natGwOne.id,
           cidrBlock: '0.0.0.0/0'
         }
-      ]
+      ],
+      dependsOn: [natGwOne, vpcNetwork]
     })
 
     const priRouteTableTwo = new aws.vpc.RouteTable(this, 'private-routetable-2', {
@@ -94,17 +107,20 @@ class MyStack extends TerraformStack {
           natGatewayId: natGwTwo.id,
           cidrBlock: '0.0.0.0/0'
         }
-      ]
+      ],
+      dependsOn: [vpcNetwork, natGwTwo]
     })
 
     new aws.vpc.RouteTableAssociation(this, 'priv-asso-1', {
       subnetId: privateSubnetOne.id,
-      routeTableId: privateSubnetOne.id
+      routeTableId: priRouteTableOne.id,
+      dependsOn: [privateSubnetOne, priRouteTableOne]
     })
 
     new aws.vpc.RouteTableAssociation(this, 'priv-asso-2', {
       subnetId: privateSubnetTwo.id,
-      routeTableId: privateSubnetTwo.id
+      routeTableId: priRouteTableTwo.id,
+      dependsOn: [privateSubnetTwo, priRouteTableTwo]
     })
 
     new TerraformOutput(this, 'vpc-id', {
